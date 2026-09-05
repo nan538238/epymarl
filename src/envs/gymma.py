@@ -34,10 +34,30 @@ class GymmaWrapper(MultiAgentEnv):
         seed,
         common_reward,
         reward_scalarisation,
+        max_episode_steps=None,
         **kwargs,
     ):
-        self._env = gym.make(f"{key}", **kwargs)
-        self._env = TimeLimit(self._env, max_episode_steps=time_limit)
+        # ``lbforaging`` registrations include their own 50-step TimeLimit and
+        # an internal ``_max_episode_steps`` attribute.  Passing the requested
+        # limit to gym.make controls the outer wrapper; for LBF, unwrapping and
+        # patching the base environment removes the inner hard-coded limit too.
+        self._env = gym.make(
+            f"{key}", max_episode_steps=time_limit, **kwargs
+        )
+        if key.startswith("lbforaging:"):
+            base_env = self._env.unwrapped
+            for attr in (
+                "_max_episode_steps",
+                "_max_steps",
+                "max_steps",
+                "_step_limit",
+            ):
+                if hasattr(base_env, attr):
+                    setattr(base_env, attr, time_limit)
+                    break
+            self._env = TimeLimit(base_env, max_episode_steps=time_limit)
+        else:
+            self._env = TimeLimit(self._env, max_episode_steps=time_limit)
         self._env = FlattenObservation(self._env)
 
         if pretrained_wrapper:
@@ -86,6 +106,12 @@ class GymmaWrapper(MultiAgentEnv):
         actions = [int(a) for a in actions]
         obs, reward, done, truncated, self._info = self._env.step(actions)
         self._obs = self._pad_observation(obs)
+
+        # EPyMARL runners use this flag to distinguish a time-limit timeout
+        # from a terminal environment state and keep the value bootstrap valid.
+        if truncated:
+            self._info = dict(self._info or {})
+            self._info["episode_limit"] = True
 
         if self.common_reward and isinstance(reward, Iterable):
             reward = float(self.reward_agg_fn(reward))

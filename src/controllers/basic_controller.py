@@ -73,6 +73,10 @@ class BasicMAC:
                 inputs.append(batch["actions_onehot"][:, t-1])
         if self.args.obs_agent_id:
             inputs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
+        if getattr(self.args, "obs_global_state", False):
+            # Oracle-MAPPO: expose the full global state to every actor.
+            state = batch["state"][:, t]
+            inputs.append(state.unsqueeze(1).expand(-1, self.n_agents, -1))
 
         inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
         return inputs
@@ -83,5 +87,7 @@ class BasicMAC:
             input_shape += scheme["actions_onehot"]["vshape"][0]
         if self.args.obs_agent_id:
             input_shape += self.n_agents
+        if getattr(self.args, "obs_global_state", False):
+            input_shape += scheme["state"]["vshape"]
 
         return input_shape

@@ -7,7 +7,10 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
+"""
+Plot results from multiple experiments
+python plot_results.py --path results/sacred --save_dir ./plots --metric return_mean
+"""
 
 ALPHA = 0.2
 THRESHOLD_FOR_NUM_ALGS_UNTIL_LEGEND_BELOW_PLOT = 6
