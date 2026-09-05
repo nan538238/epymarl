@@ -179,6 +179,27 @@ class GymmaWrapper(MultiAgentEnv):
                     player.level,
                 )
 
+        # Keep entity features on comparable scales for the Oracle actor.  LBF
+        # coordinates are map indices (e.g. 0..14) while levels are small
+        # integers; feeding them raw makes the global columns much larger than
+        # the local observation features.  Preserve ``-1`` for empty slots so
+        # the fixed-size representation still distinguishes missing entities.
+        field_shape = np.asarray(base_env.field.shape[:2], dtype=np.float32)
+        row_scale = max(float(field_shape[0] - 1.0), 1.0)
+        col_scale = max(float(field_shape[1] - 1.0), 1.0)
+        player_level_limit = np.asarray(
+            getattr(base_env, "max_player_level", 1), dtype=np.float32
+        )
+        level_scale = max(
+            float(np.max(player_level_limit)) if player_level_limit.size else 1.0,
+            float(np.max(base_env.field)) if base_env.field.size else 1.0,
+            1.0,
+        )
+        valid = global_state[:, 0] >= 0.0
+        global_state[valid, 0] /= row_scale
+        global_state[valid, 1] /= col_scale
+        global_state[valid, 2] /= level_scale
+
         return global_state.reshape(-1)
 
     def get_state_size(self):
