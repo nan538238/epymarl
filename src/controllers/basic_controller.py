@@ -66,8 +66,12 @@ class BasicMAC:
             # Build a standard Local-MAPPO actor first.  Copying it into the
             # expanded actor makes Oracle-MAPPO start from exactly the same
             # policy; the extra global-state columns are learned from zero.
+            # Preserve the RNG position so later modules (notably the critic)
+            # are also initialized identically in same-seed comparisons.
             local_agent = agent_REGISTRY[self.args.agent](local_dim, self.args)
+            rng_state = th.get_rng_state()
             self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
+            th.set_rng_state(rng_state)
             if hasattr(self.agent, "fc1") and state_dim <= self.agent.fc1.in_features:
                 with th.no_grad():
                     self.agent.fc1.weight[:, :local_dim].copy_(local_agent.fc1.weight)

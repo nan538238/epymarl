@@ -143,9 +143,43 @@ class GymmaWrapper(MultiAgentEnv):
         return np.concatenate(self._obs, axis=0).astype(np.float32)
 
     def get_global_state(self):
-        # Oracle-MAPPO uses all agents' current observations as its global
-        # input, matching the state representation used by EPyMARL's critic.
-        return self.get_state()
+        """Return a fully observable entity state for Oracle-MAPPO.
+
+        LBF's normal vector observation hides food and agents outside the
+        acting player's sight.  Concatenating those observations therefore
+        is not an oracle: food can remain absent from all three vectors.  The
+        underlying ForagingEnv keeps the complete field and player list, so
+        expose a fixed-size representation containing every food position and
+        level followed by every player position and level.  Keep the legacy
+        concatenated observation in ``get_state`` for the centralized critic.
+        """
+        if not self._is_lbf:
+            return self.get_state()
+
+        base_env = self._env.unwrapped
+        max_num_food = int(base_env.max_num_food)
+        global_state = np.zeros(
+            (max_num_food + self.n_agents, 3), dtype=np.float32
+        )
+        # ``(-1, -1, 0)`` is the same empty-entity convention as LBF's
+        # observation vector and keeps the representation at a fixed size.
+        global_state[:, :2] = -1.0
+
+        # np.nonzero is row-major, giving food slots a deterministic order.
+        for i, (row, col) in enumerate(
+            np.argwhere(base_env.field > 0)[:max_num_food]
+        ):
+            global_state[i] = (row, col, base_env.field[row, col])
+
+        for i, player in enumerate(base_env.players[: self.n_agents]):
+            if player.position is not None:
+                global_state[max_num_food + i] = (
+                    player.position[0],
+                    player.position[1],
+                    player.level,
+                )
+
+        return global_state.reshape(-1)
 
     def get_state_size(self):
         """Returns the shape of the state"""
@@ -154,6 +188,9 @@ class GymmaWrapper(MultiAgentEnv):
         return self.n_agents * flatdim(self.longest_observation_space)
 
     def get_global_state_size(self):
+        if self._is_lbf:
+            base_env = self._env.unwrapped
+            return (int(base_env.max_num_food) + self.n_agents) * 3
         return self.get_state_size()
 
     def get_avail_actions(self):

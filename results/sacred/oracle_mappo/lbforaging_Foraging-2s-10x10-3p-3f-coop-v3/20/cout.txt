@@ -1,0 +1,141 @@
+[INFO 20:50:19] pymarl Running command 'my_main'
+[INFO 20:50:19] pymarl Started run with ID "20"
+[DEBUG 20:50:19] pymarl Starting Heartbeat
+[DEBUG 20:50:19] my_main Started
+[INFO 20:50:19] my_main Experiment Parameters:
+[INFO 20:50:19] my_main 
+
+{   'action_selector': 'soft_policies',
+    'add_value_last_step': True,
+    'agent': 'rnn',
+    'agent_output_type': 'pi_logits',
+    'batch_size': 10,
+    'batch_size_run': 10,
+    'buffer_cpu_only': True,
+    'buffer_size': 10,
+    'checkpoint_path': '',
+    'common_reward': True,
+    'critic_type': 'cv_critic',
+    'entropy_coef': 0.001,
+    'env': 'gymma',
+    'env_args': {   'key': 'lbforaging:Foraging-2s-10x10-3p-3f-coop-v3',
+                    'pretrained_wrapper': None,
+                    'seed': 0,
+                    'time_limit': 50},
+    'epochs': 4,
+    'eps_clip': 0.2,
+    'evaluate': False,
+    'gamma': 0.99,
+    'grad_norm_clip': 10,
+    'hidden_dim': 128,
+    'hypergroup': None,
+    'label': 'default_label',
+    'learner': 'ppo_learner',
+    'learner_log_interval': 10000,
+    'load_step': 0,
+    'local_results_path': 'results',
+    'log_interval': 50000,
+    'lr': 0.0003,
+    'mac': 'basic_mac',
+    'mask_before_softmax': True,
+    'name': 'oracle_mappo',
+    'obs_agent_id': True,
+    'obs_global_state': True,
+    'obs_individual_obs': False,
+    'obs_last_action': False,
+    'optim_alpha': 0.99,
+    'optim_eps': 1e-05,
+    'q_nstep': 5,
+    'render': False,
+    'repeat_id': 1,
+    'reward_scalarisation': 'sum',
+    'runner': 'parallel',
+    'runner_log_interval': 10000,
+    'save_model': False,
+    'save_model_interval': 50000,
+    'save_replay': False,
+    'seed': 0,
+    'standardise_returns': False,
+    'standardise_rewards': True,
+    't_max': 200000,
+    'target_update_interval_or_tau': 0.01,
+    'test_greedy': True,
+    'test_interval': 50000,
+    'test_nepisode': 100,
+    'use_cuda': False,
+    'use_rnn': True,
+    'use_tensorboard': False,
+    'use_wandb': False,
+    'wandb_mode': 'offline',
+    'wandb_project': None,
+    'wandb_save_model': False,
+    'wandb_team': None}
+
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+[INFO 20:50:19] my_main Oracle actor input: obs=18 + agent_id=3 + global_state=18 => 39
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/student/zzq/miniforge3/envs/marl/lib/python3.10/site-packages/gymnasium/spaces/box.py:130: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  gym.logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+[INFO 20:50:19] my_main Beginning training for 200000 timesteps
+[INFO 20:50:20] my_main t_env: 500 / 200000
+[INFO 20:50:20] my_main Estimated time left: 1 seconds. Time passed: 0 seconds
+[INFO 20:50:46] my_main Recent Stats | t_env:      50000 | Episode:     1000
+advantage_mean:           -0.0037	agent_grad_norm:           0.0160	critic_grad_norm:          0.0708	critic_loss:               0.0038
+ep_length_mean:           50.0000	episode_limit_mean:        1.0000	load_actions_mean:        27.7710	oracle_global_grad_norm:   0.0120
+pg_loss:                   0.0017	pi_max:                    0.2983	positive_reward_steps_mean:  0.0000	q_taken_mean:              0.1038
+return_mean:               0.0000	return_std:                0.0000	target_mean:               0.1001	td_error_abs:              0.0471
+test_ep_length_mean:      50.0000	test_episode_limit_mean:   1.0000	test_load_actions_mean:   27.6000	test_positive_reward_steps_mean:  0.0000
+test_return_mean:          0.0000	test_return_std:           0.0000	
+[INFO 20:50:46] my_main t_env: 50500 / 200000
+[INFO 20:50:46] my_main Estimated time left: 1 minutes, 18 seconds. Time passed: 26 seconds
+[INFO 20:51:11] my_main Recent Stats | t_env:     100000 | Episode:     2000
+advantage_mean:           -0.0223	agent_grad_norm:           0.0316	critic_grad_norm:          0.3499	critic_loss:               0.0166
+ep_length_mean:           50.0000	episode_limit_mean:        1.0000	load_actions_mean:        28.2060	oracle_global_grad_norm:   0.0242
+pg_loss:                   0.0207	pi_max:                    0.4158	positive_reward_steps_mean:  0.0010	q_taken_mean:              0.1758
+return_mean:               0.0003	return_std:                0.0047	target_mean:               0.1535	td_error_abs:              0.0685
+test_ep_length_mean:      50.0000	test_episode_limit_mean:   1.0000	test_load_actions_mean:   29.7350	test_positive_reward_steps_mean:  0.0000
+test_return_mean:          0.0000	test_return_std:           0.0000	
+[INFO 20:51:11] my_main t_env: 100500 / 200000
+[INFO 20:51:11] my_main Estimated time left: 50 seconds. Time passed: 51 seconds
+[INFO 20:51:36] my_main Recent Stats | t_env:     150000 | Episode:     3000
+advantage_mean:            0.0019	agent_grad_norm:           0.0183	critic_grad_norm:          0.0680	critic_loss:               0.0041
+ep_length_mean:           50.0000	episode_limit_mean:        1.0000	load_actions_mean:        22.6420	oracle_global_grad_norm:   0.0141
+pg_loss:                  -0.0035	pi_max:                    0.4235	positive_reward_steps_mean:  0.0000	q_taken_mean:              0.1947
+return_mean:               0.0000	return_std:                0.0000	target_mean:               0.1966	td_error_abs:              0.0463
+test_ep_length_mean:      50.0000	test_episode_limit_mean:   1.0000	test_load_actions_mean:   27.7367	test_positive_reward_steps_mean:  0.0000
+test_return_mean:          0.0000	test_return_std:           0.0000	
+[INFO 20:51:37] my_main t_env: 150500 / 200000
+[INFO 20:51:37] my_main Estimated time left: 25 seconds. Time passed: 1 minutes, 17 seconds
+[INFO 20:52:02] my_main Recent Stats | t_env:     200000 | Episode:     4000
+advantage_mean:           -0.0077	agent_grad_norm:           0.0318	critic_grad_norm:          0.0853	critic_loss:               0.0038
+ep_length_mean:           50.0000	episode_limit_mean:        1.0000	load_actions_mean:        20.5760	oracle_global_grad_norm:   0.0275
+pg_loss:                   0.0064	pi_max:                    0.5308	positive_reward_steps_mean:  0.0020	q_taken_mean:              0.2076
+return_mean:               0.0007	return_std:                0.0094	target_mean:               0.1999	td_error_abs:              0.0442
+test_ep_length_mean:      50.0000	test_episode_limit_mean:   1.0000	test_load_actions_mean:   25.5950	test_positive_reward_steps_mean:  0.0000
+test_return_mean:          0.0000	test_return_std:           0.0000	
+[INFO 20:52:02] my_main t_env: 200500 / 200000
+[INFO 20:52:02] my_main Estimated time left: -. Time passed: 1 minutes, 42 seconds
+[INFO 20:52:03] my_main Finished Training
+Exiting Main
+Stopping all threads
+Thread Thread-1 is alive! Is daemon: False
+Thread joined
+Exiting script
+[DEBUG 20:52:04] my_main Finished after 0:01:45.
+[INFO 20:52:04] pymarl Completed after 0:01:45
