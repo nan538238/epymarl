@@ -1,0 +1,129 @@
+{
+  "artifacts": [],
+  "command": "my_main",
+  "experiment": {
+    "base_dir": "D:\\codex\\epymarl\\src",
+    "dependencies": [
+      "numpy==1.21.5",
+      "PyYAML==6.0.2",
+      "sacred==0.8.7",
+      "torch==1.9.1+cu111"
+    ],
+    "mainfile": "main.py",
+    "name": "pymarl",
+    "repositories": [
+      {
+        "commit": "d8e26124a181f71c21d6a4e4d9bc69f3e14b6e05",
+        "dirty": true,
+        "url": "https://github.com/nan538238/epymarl.git"
+      },
+      {
+        "commit": "d8e26124a181f71c21d6a4e4d9bc69f3e14b6e05",
+        "dirty": true,
+        "url": "https://github.com/nan538238/epymarl.git"
+      },
+      {
+        "commit": "d8e26124a181f71c21d6a4e4d9bc69f3e14b6e05",
+        "dirty": true,
+        "url": "https://github.com/nan538238/epymarl.git"
+      }
+    ],
+    "sources": [
+      [
+        "main.py",
+        "_sources\\main_336c12982a012b62e400b2a1c6e4e5a4.py"
+      ],
+      [
+        "run.py",
+        "_sources\\run_cb6c0c0486016e40fb17d5cb3a92505e.py"
+      ],
+      [
+        "utils\\logging.py",
+        "_sources\\logging_31034dff59fae30d08263ccee141603c.py"
+      ]
+    ]
+  },
+  "heartbeat": "2026-09-05T06:26:51.516615",
+  "host": {
+    "ENV": {},
+    "cpu": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "gpus": {
+      "driver_version": "462.21",
+      "gpus": [
+        {
+          "model": "GeForce GTX 1650 with Max-Q Design",
+          "persistence_mode": false,
+          "total_memory": 4096
+        }
+      ]
+    },
+    "hostname": "MSI",
+    "os": [
+      "Windows",
+      "Windows-10-10.0.19045-SP0"
+    ],
+    "python_version": "3.9.25"
+  },
+  "meta": {
+    "command": "my_main",
+    "config_updates": {
+      "batch_size": 2,
+      "batch_size_run": 2,
+      "buffer_size": 2,
+      "env_args": {
+        "key": "lbforaging:Foraging-2s-10x10-3p-3f-coop-v3",
+        "time_limit": 50
+      },
+      "learner_log_interval": 5000,
+      "log_interval": 5000,
+      "runner_log_interval": 5000,
+      "seed": 0,
+      "t_max": 5000,
+      "use_cuda": false
+    },
+    "named_configs": [],
+    "options": {
+      "--beat-interval": null,
+      "--capture": null,
+      "--comment": null,
+      "--debug": false,
+      "--enforce_clean": false,
+      "--file_storage": null,
+      "--force": false,
+      "--help": false,
+      "--id": null,
+      "--loglevel": null,
+      "--mongo_db": null,
+      "--name": null,
+      "--pdb": false,
+      "--print-config": false,
+      "--priority": null,
+      "--queue": false,
+      "--s3": null,
+      "--sql": null,
+      "--tiny_db": null,
+      "--unobserved": false,
+      "COMMAND": null,
+      "UPDATE": [
+        "env_args.key=lbforaging:Foraging-2s-10x10-3p-3f-coop-v3",
+        "env_args.time_limit=50",
+        "t_max=5000",
+        "batch_size_run=2",
+        "batch_size=2",
+        "buffer_size=2",
+        "use_cuda=False",
+        "log_interval=5000",
+        "runner_log_interval=5000",
+        "learner_log_interval=5000",
+        "seed=0"
+      ],
+      "help": false,
+      "with": true
+    }
+  },
+  "resources": [],
+  "result": null,
+  "start_time": "2026-09-05T06:26:21.521399",
+  "status": "COMPLETED",
+  "stop_time": "2026-09-05T06:26:51.435145"
+}

@@ -64,6 +64,7 @@ class GymmaWrapper(MultiAgentEnv):
             self._env = getattr(pretrained, pretrained_wrapper)(self._env)
 
         self.n_agents = self._env.unwrapped.n_agents
+        self._is_lbf = key.startswith("lbforaging:")
         self.episode_limit = time_limit
         self._obs = None
         self._info = None
@@ -137,13 +138,23 @@ class GymmaWrapper(MultiAgentEnv):
         return flatdim(self.longest_observation_space)
 
     def get_state(self):
+        # Keep the historical state contract for the centralized critic.  The
+        # full LBF map is exposed separately through get_global_state().
         return np.concatenate(self._obs, axis=0).astype(np.float32)
+
+    def get_global_state(self):
+        # Oracle-MAPPO uses all agents' current observations as its global
+        # input, matching the state representation used by EPyMARL's critic.
+        return self.get_state()
 
     def get_state_size(self):
         """Returns the shape of the state"""
         if hasattr(self._env.unwrapped, "state_size"):
             return self._env.unwrapped.state_size
         return self.n_agents * flatdim(self.longest_observation_space)
+
+    def get_global_state_size(self):
+        return self.get_state_size()
 
     def get_avail_actions(self):
         avail_actions = []
