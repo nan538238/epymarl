@@ -22,7 +22,7 @@ METRICS = (
 )
 LOG_NAME = re.compile(
     r"^(?P<method>local|oracle|last_action|belief)"
-    r"__(?P<condition>same|left_left|wait_wait|left_wait)"
+    r"__(?P<condition>same|left_left|right_right|wait_wait|left_wait|right_wait)"
     r"__seed(?P<seed>[0-2])\.log$"
 )
 
@@ -102,4 +102,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

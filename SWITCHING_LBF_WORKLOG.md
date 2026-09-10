@@ -122,6 +122,48 @@ bash scripts/run_switching_intent_headroom.sh
 - 为 headroom checkpoints 做统一固定切换评估。
 - 根据 Oracle gap 决定进入 Belief-v2，或再次修改为新的环境版本。
 
+## 服务器执行记录
+
+### 2026-09-10：Intent-v1 预检通过
+
+用户同步代码后在 Ubuntu 服务器完成：
+
+- `python scripts/check_switching_lbf_versions.py --episodes 100`：PASS，四组统计与本地结果一致。
+- `DRY_RUN=1 bash scripts/run_switching_intent_headroom.sh`：正确生成 3 条训练命令。
+- `grep -c '^DRY RUN' ...`：输出 `3`。
+- dry-run 未启动训练。
+
+下一操作：正式启动 seed 0 的 Local、Type-Oracle、Last-action 500k headroom 训练。默认 `MAX_JOBS=1`，三种方法串行，避免竞争同一 GPU。
+
+### 2026-09-10：Intent-v1 500k headroom 训练完成
+
+同步并检查了三个日志：Local、Type-Oracle、Last-action 均出现 `Finished Training` 和 `pymarl Completed`，未发现 Traceback、ValueError 或 CUDA OOM。
+
+最后一次在线测试（约 451k steps，100 episodes）：
+
+```text
+method       return   post5   post10  post20  no-positive-after-switch
+local        0.0347   0.0060  0.0147  0.0240  0.9240
+oracle       0.0340   0.0040  0.0113  0.0233  0.9240
+last_action  0.0340   0.0040  0.0107  0.0220  0.9300
+```
+
+在线测试中 Oracle 没有优于 Local，因此 headroom gate 暂未通过。由于这只是训练期间不同进程中的随机评估，最终决定前仍需对 checkpoint 做相同种子、固定模式/固定切换条件评估。
+
+本地目前只同步到 `results/intent_v1_headroom/logs/`，没有同步 `artifacts/`，所以尚不能执行 checkpoint 公平评估。
+
+另一个已记录的运行细节：训练在约 500k steps 结束，但现有保存逻辑只按间隔保存，没有在退出前强制保存最终模型。本轮最新可用 checkpoint 分别为：
+
+```text
+local        400992
+oracle       400997
+last_action  400500
+```
+
+本轮先使用这三个约 400k checkpoint，不为追求步数整齐而重跑。后续 launcher 或训练框架需要补“结束时保存最终 checkpoint”，但在本轮公平评估完成前不继续修改训练逻辑。
+
+已新增 `scripts/run_switching_intent_checkpoint_eval.sh`。脚本会从三种方法的 artifacts 中自动选择最大数字 checkpoint，并执行 3 methods × 4 fixed conditions × 1 seed，共 12 组、每组默认 1000 episodes。四个条件为 same、right-right、wait-wait、right-wait，初始模式统一为 left-left，固定第 25 步切换。所有方法/条件使用配对 evaluation seed。
+
 ## 回滚点
 
 - 用户已同步的基线 commit：`2014490`。
