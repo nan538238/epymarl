@@ -2,6 +2,8 @@
 
 最后更新：2026-09-10
 
+> 重要勘误：后续轨迹审计发现历史 v0 脚本队友不会执行 LOAD。本文件的 recovery 数值计算有效，但测量的是存在环境实现缺陷的 v0 checkpoint，不能用于判断 Belief 的最终研究价值。修复和新门禁见 `SWITCHING_LBF_WORKLOG.md`。
+
 ## 已完成
 
 - 在 `src/runners/switching_metrics.py` 中实现统一的 episode 内切换统计。
@@ -11,6 +13,7 @@
 - EpisodeRunner 和 ParallelRunner 端到端短跑通过。
 - 完成 20 episodes、固定第 10 步切换的本地检查。
 - 创建 48 组正式 checkpoint 评估启动器和 CSV 汇总脚本。
+- 修复 `evaluate=True` 将 `test_nepisode` 额外乘以 `batch_size_run` 的问题。
 
 ## 指标定义
 
@@ -48,6 +51,12 @@ test_first_positive_after_switch_steps_observed_mean = 11.0
 ~~~
 
 这些结果确认切换边界、censored 统计和 LOAD 动作统计均已进入最终日志。
+
+注意：原始 `evaluate_sequential` 会循环 `test_nepisode` 次，而 ParallelRunner 每次
+运行 `batch_size_run` 个 episode。因此历史上设置 `test_nepisode=1000`、
+`batch_size_run=10` 的固定评估实际运行了 10,000 episodes；第一次服务器冒烟测试
+设置为 20 时实际运行了 200 episodes。`src/run.py` 现已修复，后续配置中的
+`test_nepisode` 就是实际 episode 数。
 
 ## 正式评估
 

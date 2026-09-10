@@ -20,6 +20,7 @@ class SwitchingLBFEnv(gym.Env):
         teammate_modes=("greedy", "left_priority", "wait"),
         reveal_teammate_modes=False,
         include_teammate_last_actions=False,
+        use_load_positions=False,
         initial_mode_ids=None,
         switch_mode_ids=None,
         fixed_switch_step=None,
@@ -34,6 +35,10 @@ class SwitchingLBFEnv(gym.Env):
         self.teammate_modes = tuple(teammate_modes)
         self.reveal_teammate_modes = bool(reveal_teammate_modes)
         self.include_teammate_last_actions = bool(include_teammate_last_actions)
+        # Keep False for the historical v0 registrations so their checkpoints
+        # remain exactly reproducible. Fixed-v1 registrations enable the
+        # correct LBF behavior: LOAD from a cell adjacent to food.
+        self.use_load_positions = bool(use_load_positions)
         self.initial_mode_ids = (
             tuple(int(v) for v in initial_mode_ids)
             if initial_mode_ids is not None
@@ -95,6 +100,8 @@ class SwitchingLBFEnv(gym.Env):
         self._current_modes = (0, 1)
         self._switched = False
         self._last_teammate_actions = (0, 0)
+        self._teammate_load_count = 0
+        self._initial_food_count = 0
 
     def _mode_name(self, mode_id):
         return self.teammate_modes[int(mode_id) % len(self.teammate_modes)]
@@ -120,14 +127,47 @@ class SwitchingLBFEnv(gym.Env):
         distances = {food: self._manhattan(pos, food) for food in foods}
         name = self._mode_name(mode)
         if name == "left_priority":
-            return min(foods, key=lambda f: (f[1], distances[f], f[0]))
+            food = min(foods, key=lambda f: (f[1], distances[f], f[0]))
+            return self._load_target(player_id, food) if self.use_load_positions else food
+        if name == "right_priority":
+            food = max(foods, key=lambda f: (f[1], -distances[f], -f[0]))
+            return self._load_target(player_id, food) if self.use_load_positions else food
         if name == "wait":
             ego = self.base_env.players[0]
             if ego.position is None or self._manhattan(pos, ego.position) > 2:
                 return None
         if name == "far_priority":
-            return max(foods, key=lambda f: (distances[f], f[0], f[1]))
-        return min(foods, key=lambda f: (distances[f], f[0], f[1]))
+            food = max(foods, key=lambda f: (distances[f], f[0], f[1]))
+            return self._load_target(player_id, food) if self.use_load_positions else food
+        food = min(foods, key=lambda f: (distances[f], f[0], f[1]))
+        return self._load_target(player_id, food) if self.use_load_positions else food
+
+    def _load_target(self, player_id, food):
+        """Choose a deterministic, legal cell from which ``player_id`` can LOAD."""
+        height, width = self.base_env.field.shape[:2]
+        candidates = [
+            (food[0] + dr, food[1] + dc)
+            for dr, dc in ((-1, 0), (0, -1), (0, 1), (1, 0))
+            if 0 <= food[0] + dr < height and 0 <= food[1] + dc < width
+        ]
+        if not candidates:
+            return None
+
+        player = self.base_env.players[player_id]
+        pos = tuple(int(v) for v in player.position)
+        # Different teammate IDs prefer different adjacent slots. Distance is
+        # still the primary criterion; the rotated order only breaks ties.
+        offset = (player_id - 1) % len(candidates)
+        preference = candidates[offset:] + candidates[:offset]
+        rank = {candidate: idx for idx, candidate in enumerate(preference)}
+        occupied = {
+            tuple(int(v) for v in other.position)
+            for idx, other in enumerate(self.base_env.players)
+            if idx != player_id and other.position is not None
+        }
+        available = [candidate for candidate in candidates if candidate not in occupied]
+        choices = available or candidates
+        return min(choices, key=lambda cell: (self._manhattan(pos, cell), rank[cell]))
 
     def _move_action(self, player_id, target):
         player = self.base_env.players[player_id]
@@ -154,6 +194,12 @@ class SwitchingLBFEnv(gym.Env):
             "switching_lbf_teammate_0_mode": float(self._current_modes[0]),
             "switching_lbf_teammate_1_mode": float(self._current_modes[1]),
             "switching_lbf_teammate_actions": float(sum(teammate_actions)),
+            "switching_lbf_teammate_load_count": float(
+                self._teammate_load_count
+            ),
+            "switching_lbf_foods_collected": float(
+                self._initial_food_count - len(self._food_positions())
+            ),
         }
 
     def _augment_obs(self, obs):
@@ -177,6 +223,8 @@ class SwitchingLBFEnv(gym.Env):
         self._t = 0
         self._switched = False
         self._last_teammate_actions = (0, 0)
+        self._teammate_load_count = 0
+        self._initial_food_count = len(self._food_positions())
         lo = max(1, int(self.episode_limit * self.switch_min_frac))
         hi = max(lo + 1, int(self.episode_limit * self.switch_max_frac) + 1)
         self._switch_step = (
@@ -214,6 +262,9 @@ class SwitchingLBFEnv(gym.Env):
             self._teammate_action(1, self._current_modes[0]),
             self._teammate_action(2, self._current_modes[1]),
         ]
+        self._teammate_load_count += sum(
+            action == self._action_size - 1 for action in teammate_actions
+        )
         obs, reward, terminated, truncated, info = self.env.step(
             [ego_action, *teammate_actions]
         )
@@ -241,6 +292,11 @@ def register_switching_lbf():
     """Register the prototype once without touching external environments."""
     from gymnasium.envs.registration import register, registry
 
+    intent_kwargs = {
+        "base_key": "lbforaging:Foraging-2s-10x10-3p-3f-coop-v3",
+        "teammate_modes": ("left_priority", "right_priority", "wait"),
+        "use_load_positions": True,
+    }
     registrations = {
         "epymarl/Switching-LBF-v0": {},
         "epymarl/Switching-LBF-TypeOracle-v0": {"reveal_teammate_modes": True},
@@ -249,6 +305,36 @@ def register_switching_lbf():
         },
         "epymarl/Switching-LBF-Belief-v0": {
             "include_teammate_last_actions": True
+        },
+        "epymarl/Switching-LBF-Fixed-v1": {"use_load_positions": True},
+        "epymarl/Switching-LBF-TypeOracle-Fixed-v1": {
+            "reveal_teammate_modes": True,
+            "use_load_positions": True,
+        },
+        "epymarl/Switching-LBF-LastAction-Fixed-v1": {
+            "include_teammate_last_actions": True,
+            "use_load_positions": True,
+        },
+        "epymarl/Switching-LBF-Belief-Fixed-v1": {
+            "include_teammate_last_actions": True,
+            "use_load_positions": True,
+        },
+        # Research candidate: the cooperative LBF variant prevents the two
+        # scripted teammates from completing the task while the ego does
+        # nothing. Keep this separate from both historical v0 and diagnostic
+        # Fixed-v1 registrations.
+        "epymarl/Switching-LBF-Intent-v1": dict(intent_kwargs),
+        "epymarl/Switching-LBF-TypeOracle-Intent-v1": {
+            **intent_kwargs,
+            "reveal_teammate_modes": True,
+        },
+        "epymarl/Switching-LBF-LastAction-Intent-v1": {
+            **intent_kwargs,
+            "include_teammate_last_actions": True,
+        },
+        "epymarl/Switching-LBF-Belief-Intent-v1": {
+            **intent_kwargs,
+            "include_teammate_last_actions": True,
         },
     }
     for env_id, kwargs in registrations.items():

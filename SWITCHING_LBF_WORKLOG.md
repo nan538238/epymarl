@@ -1,0 +1,129 @@
+# Switching-LBF 修复与实验工作日志
+
+最后更新：2026-09-10
+
+本文档是当前工作的唯一决策记录。后续修改前先阅读本文件，并把新证据追加到这里，避免重复修复或覆盖历史语义。
+
+## 不可破坏的约束
+
+1. `epymarl/Switching-LBF-*-v0` 必须冻结；不得改变注册参数或用新语义继续加载旧 checkpoint。
+2. 所有语义修复使用新环境 ID。当前分层为：
+   - `v0`：历史实验复现，仅保留。
+   - `Fixed-v1`：只验证“相邻食物格 LOAD”修复，不作为正式研究环境。
+   - `Intent-v1`：强制合作的正式候选环境。
+3. 任何正式训练前必须运行 `scripts/check_switching_lbf_versions.py`。
+4. 当前不修改 Belief 网络。只有 Local / Oracle / Last-action 的 headroom gate 通过后，才进入 Belief-v2。
+5. 当前工作不提交 Git，由用户检查和同步。
+
+## 已确认的历史问题
+
+### 1. v0 脚本队友从未执行 LOAD
+
+旧 `_choose_target` 把食物格本身作为目标；旧 `_move_action` 只有站到目标格才 LOAD。但 LBF 玩家不能进入食物格，必须站在相邻格 LOAD。
+
+轨迹审计结果（100 episodes / 5000 steps）：
+
+```text
+teammate_load_actions=0
+adjacent_nonload_decisions=7522
+```
+
+因此旧交接文档中“v0 已产生有效队友策略差异”的解释过强。旧实验仍可用于复现，但不能继续作为研究结论的依据。
+
+### 2. 旧有效性检查也使用了错误 LOAD 条件
+
+根目录的 `switching_lbf_validity_check.py` 会寻路到食物格，并仅在 `pos in foods` 时 LOAD；其 1000-episode 结果不能证明脚本队友行为有效。保留该文件只用于历史追踪，不再作为门禁。
+
+### 3. evaluate=True 曾把 episode 数放大十倍
+
+ParallelRunner 每次运行 `batch_size_run` 个 episode，而旧 `evaluate_sequential` 又循环了 `test_nepisode` 次。`src/run.py` 已改为按 `test_nepisode // runner.batch_size` 计算次数。
+
+影响：早期标称 1000 的评估实际运行 10000 episodes；首次标称 20 的冒烟实际运行 200 episodes。修复后的正式 recovery 评估确实为每组 1000 episodes。
+
+## 2026-09-10 修复设计
+
+### Fixed-v1：动作语义诊断版
+
+- 新增 `use_load_positions=True`。
+- 队友选择食物相邻的合法 LOAD 站位。
+- 新增 `right_priority`。
+- 新增诊断字段：`switching_lbf_teammate_load_count` 和 `switching_lbf_foods_collected`。
+- v0 默认 `use_load_positions=False`，保持历史行为。
+
+验证发现 Fixed-v1 仍有实验设计缺陷：使用非 coop LBF 时，即使 ego 全程 NOOP，两个脚本队友仍可获取团队奖励。因此 Fixed-v1 不用于正式训练。
+
+### Intent-v1：正式候选版
+
+环境参数：
+
+```text
+base_key=lbforaging:Foraging-2s-10x10-3p-3f-coop-v3
+teammate_modes=(left_priority, right_priority, wait)
+use_load_positions=True
+```
+
+注册 ID：
+
+```text
+epymarl/Switching-LBF-Intent-v1
+epymarl/Switching-LBF-TypeOracle-Intent-v1
+epymarl/Switching-LBF-LastAction-Intent-v1
+epymarl/Switching-LBF-Belief-Intent-v1
+```
+
+这里的 left/right 表示可区分的目标意图；coop 约束保证 ego 必须参与。
+
+## 已完成验证
+
+运行：
+
+```bash
+python scripts/check_switching_lbf_versions.py --episodes 100
+```
+
+每种结果合并 3 个同型条件，共 300 episodes：
+
+```text
+legacy_v0_noop               return=0.0000 positive=0.000 loads=0.00 foods=0.000
+fixed_v1_noop                return=0.1788 positive=0.367 loads=42.12 foods=0.647
+intent_v1_noop               return=0.0000 positive=0.000 loads=50.99 foods=0.000
+intent_v1_oracle_heuristic   return=0.0778 positive=0.233 loads=35.15 foods=0.233
+PASS
+```
+
+解释：
+
+- v0 冻结语义未被破坏。
+- Fixed-v1 的 LOAD 修复生效，同时暴露“ego 可躺赢”问题。
+- Intent-v1 中 ego NOOP 无法得分，Oracle heuristic 可以得分，满足进入学习实验的最低前提。
+
+自动测试：Switching-LBF 8 项加 evaluation episode-count 2 项，共 10 项通过。
+
+EPyMARL 单进程端到端短跑：Local、Type-Oracle、Last-action 均完成 20 steps 并出现 `pymarl Completed`。Windows 上 ParallelRunner 冒烟因多进程启动长时间未结束，已手动停止；这是本地运行方式问题，不是环境语义门禁失败。服务器仍使用默认 ParallelRunner。
+
+Windows 自带的 `bash.exe` 因 WSL 服务权限无法执行 shell launcher 的 dry-run；启动器需要在目标 Ubuntu 服务器上先执行 `bash -n` 和 `DRY_RUN=1`。Python 门禁与三种算法的单进程短跑均已在本地实际通过。
+
+## 当前决策与下一阶段门禁
+
+下一步不是继续修 Belief，而是只训练 1 个 seed 的 Local、Type-Oracle、Last-action：
+
+```bash
+DRY_RUN=1 bash scripts/run_switching_intent_headroom.sh
+bash scripts/run_switching_intent_headroom.sh
+```
+
+默认每种 500k environment steps、串行运行、每 100k 保存 checkpoint。输出在 `results/intent_v1_headroom/`。
+
+通过标准：Oracle 的固定条件评估应稳定优于 Local，且最好优于 Last-action；否则说明环境仍没有足够的类型信息价值，应调整任务机制，而不是增加 Belief 复杂度或训练步数。
+
+未完成：
+
+- 在服务器运行版本门禁和 headroom 训练。
+- 为 headroom checkpoints 做统一固定切换评估。
+- 根据 Oracle gap 决定进入 Belief-v2，或再次修改为新的环境版本。
+
+## 回滚点
+
+- 用户已同步的基线 commit：`2014490`。
+- 本轮所有修改均未提交。
+- 若 Intent-v1 headroom 失败，只撤销/替换 Intent-v1，不改 v0，不覆盖旧 checkpoint，不在 Fixed-v1 上继续训练。

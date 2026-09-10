@@ -86,7 +86,11 @@ def run(_run, _config, _log):
 
 
 def evaluate_sequential(args, runner):
-    for _ in range(args.test_nepisode):
+    # ``ParallelRunner.run`` evaluates ``batch_size`` episodes at once. Treat
+    # test_nepisode as an episode count, as the periodic evaluation path does,
+    # rather than accidentally multiplying it by batch_size.
+    n_test_runs = max(1, args.test_nepisode // runner.batch_size)
+    for _ in range(n_test_runs):
         runner.run(test_mode=True)
 
     if args.save_replay:
