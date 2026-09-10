@@ -217,3 +217,5 @@ PASS: version semantics and coordinated Intent-v2 prerequisites hold
 下一门禁只训练 Intent-v2 Local 和 Type-Oracle 各一个 seed、500k steps。只有 Oracle 在公平固定条件评估中形成明确且一致的优势，才允许补 Last-action；否则停止 Intent-v2，不训练 Belief。
 
 Local 与 Type-Oracle 的 Intent-v2 EPyMARL 单进程端到端短跑均完成 20 steps，并正常输出 `pymarl Completed`。
+
+服务器首次运行版本门禁时，`from envs.switching_lbf` 先执行 `envs/__init__.py`，继而导入与本任务无关的 SMAClite、sklearn、scipy；用户在慢导入期间按 Ctrl+C。该现象不是 Intent-v2 失败。门禁脚本现改为通过文件路径直接加载 `switching_lbf.py`，隔离无关环境依赖。同期 shell dry-run 正确输出 2 条训练命令。

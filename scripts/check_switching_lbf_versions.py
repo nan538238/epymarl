@@ -7,6 +7,7 @@ It guards the environment semantics that the learning experiments depend on.
 
 import argparse
 import csv
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -15,8 +16,13 @@ import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
-
-from envs.switching_lbf import SwitchingLBFEnv  # noqa: E402
+MODULE_PATH = PROJECT_ROOT / "src" / "envs" / "switching_lbf.py"
+MODULE_SPEC = importlib.util.spec_from_file_location("switching_lbf_gate", MODULE_PATH)
+if MODULE_SPEC is None or MODULE_SPEC.loader is None:
+    raise ImportError(f"Cannot load Switching-LBF module from {MODULE_PATH}")
+SWITCHING_MODULE = importlib.util.module_from_spec(MODULE_SPEC)
+MODULE_SPEC.loader.exec_module(SWITCHING_MODULE)
+SwitchingLBFEnv = SWITCHING_MODULE.SwitchingLBFEnv
 
 
 EPISODE_LIMIT = 50
