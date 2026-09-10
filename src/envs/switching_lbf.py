@@ -21,6 +21,7 @@ class SwitchingLBFEnv(gym.Env):
         reveal_teammate_modes=False,
         include_teammate_last_actions=False,
         use_load_positions=False,
+        shared_teammate_mode=False,
         initial_mode_ids=None,
         switch_mode_ids=None,
         fixed_switch_step=None,
@@ -39,6 +40,10 @@ class SwitchingLBFEnv(gym.Env):
         # remain exactly reproducible. Fixed-v1 registrations enable the
         # correct LBF behavior: LOAD from a cell adjacent to food.
         self.use_load_positions = bool(use_load_positions)
+        # Cooperative LBF food requires all three players. New coordinated
+        # variants therefore give the two scripted teammates one shared
+        # latent intent. Historical versions keep independent modes.
+        self.shared_teammate_mode = bool(shared_teammate_mode)
         self.initial_mode_ids = (
             tuple(int(v) for v in initial_mode_ids)
             if initial_mode_ids is not None
@@ -233,11 +238,15 @@ class SwitchingLBFEnv(gym.Env):
             else int(self._rng.integers(lo, hi))
         )
         n_modes = len(self.teammate_modes)
-        self._initial_modes = (
-            self.initial_mode_ids
-            if self.initial_mode_ids is not None
-            else tuple(int(v) for v in self._rng.choice(n_modes, size=2, replace=False))
-        )
+        if self.initial_mode_ids is not None:
+            self._initial_modes = self.initial_mode_ids
+        elif self.shared_teammate_mode:
+            initial_mode = int(self._rng.integers(n_modes))
+            self._initial_modes = (initial_mode, initial_mode)
+        else:
+            self._initial_modes = tuple(
+                int(v) for v in self._rng.choice(n_modes, size=2, replace=False)
+            )
         self._current_modes = self._initial_modes
         info = dict(info or {})
         info.update(self._info((0, 0)))
@@ -247,14 +256,20 @@ class SwitchingLBFEnv(gym.Env):
     def step(self, actions):
         if self._t >= self._switch_step and not self._switched:
             n_modes = len(self.teammate_modes)
-            self._current_modes = (
-                self.switch_mode_ids
-                if self.switch_mode_ids is not None
-                else tuple(
+            if self.switch_mode_ids is not None:
+                self._current_modes = self.switch_mode_ids
+            elif self.shared_teammate_mode:
+                switched_mode = (
+                    self._initial_modes[0]
+                    + 1
+                    + int(self._rng.integers(n_modes - 1))
+                ) % n_modes
+                self._current_modes = (switched_mode, switched_mode)
+            else:
+                self._current_modes = tuple(
                     (mode + 1 + int(self._rng.integers(n_modes - 1))) % n_modes
                     for mode in self._initial_modes
                 )
-            )
             self._switched = True
 
         ego_action = int(np.asarray(actions).reshape(-1)[0])
@@ -297,6 +312,10 @@ def register_switching_lbf():
         "teammate_modes": ("left_priority", "right_priority", "wait"),
         "use_load_positions": True,
     }
+    coordinated_intent_kwargs = {
+        **intent_kwargs,
+        "shared_teammate_mode": True,
+    }
     registrations = {
         "epymarl/Switching-LBF-v0": {},
         "epymarl/Switching-LBF-TypeOracle-v0": {"reveal_teammate_modes": True},
@@ -334,6 +353,19 @@ def register_switching_lbf():
         },
         "epymarl/Switching-LBF-Belief-Intent-v1": {
             **intent_kwargs,
+            "include_teammate_last_actions": True,
+        },
+        "epymarl/Switching-LBF-Intent-v2": dict(coordinated_intent_kwargs),
+        "epymarl/Switching-LBF-TypeOracle-Intent-v2": {
+            **coordinated_intent_kwargs,
+            "reveal_teammate_modes": True,
+        },
+        "epymarl/Switching-LBF-LastAction-Intent-v2": {
+            **coordinated_intent_kwargs,
+            "include_teammate_last_actions": True,
+        },
+        "epymarl/Switching-LBF-Belief-Intent-v2": {
+            **coordinated_intent_kwargs,
             "include_teammate_last_actions": True,
         },
     }

@@ -69,6 +69,27 @@ def evaluate(label, env_kwargs, policy, episodes):
     }
 
 
+def shared_mode_rates(env_kwargs, episodes):
+    initial_shared = []
+    switched_shared = []
+    env = SwitchingLBFEnv(
+        max_episode_steps=EPISODE_LIMIT,
+        fixed_switch_step=1,
+        seed=0,
+        **env_kwargs,
+    )
+    try:
+        for episode in range(episodes):
+            env.reset(seed=episode)
+            initial_shared.append(env._current_modes[0] == env._current_modes[1])
+            env.step([0])
+            env.step([0])
+            switched_shared.append(env._current_modes[0] == env._current_modes[1])
+    finally:
+        env.close()
+    return float(np.mean(initial_shared)), float(np.mean(switched_shared))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=100)
@@ -87,12 +108,22 @@ def main():
         "teammate_modes": ("left_priority", "right_priority", "wait"),
         "use_load_positions": True,
     }
+    coordinated_kwargs = {**intent_kwargs, "shared_teammate_mode": True}
     rows = [
         evaluate("legacy_v0_noop", {}, "noop", args.episodes),
         evaluate("fixed_v1_noop", fixed_kwargs, "noop", args.episodes),
         evaluate("intent_v1_noop", intent_kwargs, "noop", args.episodes),
         evaluate("intent_v1_oracle_heuristic", intent_kwargs, "oracle", args.episodes),
+        evaluate("intent_v2_noop", coordinated_kwargs, "noop", args.episodes),
+        evaluate(
+            "intent_v2_oracle_heuristic",
+            coordinated_kwargs,
+            "oracle",
+            args.episodes,
+        ),
     ]
+    v1_shared_rates = shared_mode_rates(intent_kwargs, args.episodes)
+    v2_shared_rates = shared_mode_rates(coordinated_kwargs, args.episodes)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as handle:
@@ -108,6 +139,14 @@ def main():
             f"loads={row['teammate_load_mean']:.2f} "
             f"foods={row['foods_collected_mean']:.3f}"
         )
+    print(
+        "intent_v1_shared_mode_rate "
+        f"initial={v1_shared_rates[0]:.3f} switched={v1_shared_rates[1]:.3f}"
+    )
+    print(
+        "intent_v2_shared_mode_rate "
+        f"initial={v2_shared_rates[0]:.3f} switched={v2_shared_rates[1]:.3f}"
+    )
 
     by_label = {row["label"]: row for row in rows}
     failures = []
@@ -119,13 +158,21 @@ def main():
         failures.append("Intent-v1 permits reward without ego participation")
     if by_label["intent_v1_oracle_heuristic"]["return_mean"] <= 0.05:
         failures.append("Intent-v1 oracle heuristic has insufficient reward")
+    if by_label["intent_v2_noop"]["return_mean"] != 0:
+        failures.append("Intent-v2 permits reward without ego participation")
+    if by_label["intent_v2_oracle_heuristic"]["return_mean"] <= 0.05:
+        failures.append("Intent-v2 oracle heuristic has insufficient reward")
+    if v1_shared_rates[0] != 0:
+        failures.append("Intent-v1 no longer reproduces independent initial modes")
+    if v2_shared_rates != (1.0, 1.0):
+        failures.append("Intent-v2 teammates do not keep a shared mode")
 
     print(f"saved={args.output}")
     if failures:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
-    print("PASS: version semantics and Intent-v1 headroom prerequisites hold")
+    print("PASS: version semantics and coordinated Intent-v2 prerequisites hold")
     return 0
 
 

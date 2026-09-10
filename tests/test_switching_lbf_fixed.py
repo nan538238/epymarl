@@ -20,12 +20,16 @@ class SwitchingLBFFixedTest(unittest.TestCase):
     def test_intent_registrations_use_coop_environment(self):
         register_switching_lbf()
         expected = {
-            "epymarl/Switching-LBF-Intent-v1": (False, False),
-            "epymarl/Switching-LBF-TypeOracle-Intent-v1": (True, False),
-            "epymarl/Switching-LBF-LastAction-Intent-v1": (False, True),
-            "epymarl/Switching-LBF-Belief-Intent-v1": (False, True),
+            "epymarl/Switching-LBF-Intent-v1": (False, False, False),
+            "epymarl/Switching-LBF-TypeOracle-Intent-v1": (True, False, False),
+            "epymarl/Switching-LBF-LastAction-Intent-v1": (False, True, False),
+            "epymarl/Switching-LBF-Belief-Intent-v1": (False, True, False),
+            "epymarl/Switching-LBF-Intent-v2": (False, False, True),
+            "epymarl/Switching-LBF-TypeOracle-Intent-v2": (True, False, True),
+            "epymarl/Switching-LBF-LastAction-Intent-v2": (False, True, True),
+            "epymarl/Switching-LBF-Belief-Intent-v2": (False, True, True),
         }
-        for env_id, observation_flags in expected.items():
+        for env_id, expected_flags in expected.items():
             kwargs = registry[env_id].kwargs
             self.assertIn("-coop-v3", kwargs["base_key"])
             self.assertTrue(kwargs["use_load_positions"])
@@ -33,9 +37,31 @@ class SwitchingLBFFixedTest(unittest.TestCase):
                 (
                     kwargs.get("reveal_teammate_modes", False),
                     kwargs.get("include_teammate_last_actions", False),
+                    kwargs.get("shared_teammate_mode", False),
                 ),
-                observation_flags,
+                expected_flags,
             )
+
+    def test_coordinated_modes_stay_shared_across_switch(self):
+        env = SwitchingLBFEnv(
+            base_key="lbforaging:Foraging-2s-10x10-3p-3f-coop-v3",
+            teammate_modes=("left_priority", "right_priority", "wait"),
+            use_load_positions=True,
+            shared_teammate_mode=True,
+            fixed_switch_step=1,
+            seed=0,
+        )
+        try:
+            for episode in range(20):
+                env.reset(seed=episode)
+                initial_mode = env._current_modes[0]
+                self.assertEqual(env._current_modes[0], env._current_modes[1])
+                env.step([0])
+                env.step([0])
+                self.assertEqual(env._current_modes[0], env._current_modes[1])
+                self.assertNotEqual(env._current_modes[0], initial_mode)
+        finally:
+            env.close()
 
     def test_fixed_teammates_load_from_adjacent_cells(self):
         env = SwitchingLBFEnv(

@@ -162,6 +162,12 @@ last_action  400500
 
 本轮先使用这三个约 400k checkpoint，不为追求步数整齐而重跑。后续 launcher 或训练框架需要补“结束时保存最终 checkpoint”，但在本轮公平评估完成前不继续修改训练逻辑。
 
+### 2026-09-10：Intent-v1 checkpoint 冒烟评估通过
+
+服务器完成 3 methods × 4 fixed conditions × 1 seed，共 12 组、每组 20 episodes。12/12 日志完成，汇总器未检测到错误；三种 checkpoint 均能在对应环境加载，没有输入维度或路径错误。
+
+20 episodes 的波动很大，本结果只证明评估管线可用，不能判断 Oracle headroom。下一步运行每组 1000 episodes 的正式固定条件评估。
+
 已新增 `scripts/run_switching_intent_checkpoint_eval.sh`。脚本会从三种方法的 artifacts 中自动选择最大数字 checkpoint，并执行 3 methods × 4 fixed conditions × 1 seed，共 12 组、每组默认 1000 episodes。四个条件为 same、right-right、wait-wait、right-wait，初始模式统一为 left-left，固定第 25 步切换。所有方法/条件使用配对 evaluation seed。
 
 ## 回滚点
@@ -169,3 +175,45 @@ last_action  400500
 - 用户已同步的基线 commit：`2014490`。
 - 本轮所有修改均未提交。
 - 若 Intent-v1 headroom 失败，只撤销/替换 Intent-v1，不改 v0，不覆盖旧 checkpoint，不在 Fixed-v1 上继续训练。
+
+## 2026-09-10：Intent-v1 正式 headroom 结论
+
+使用约 400k checkpoints、相同评估种子、固定第 25 步切换，每个条件 1000 episodes。12/12 日志完成且无错误。
+
+```text
+method       same    right_right  wait_wait  right_wait  four-condition mean
+local        0.1000  0.0930       0.1123     0.0740      0.094825
+oracle       0.1020  0.1063       0.1117     0.0673      0.096825
+last_action  0.0987  0.1073       0.1130     0.0703      0.097325
+```
+
+相对 Local，Oracle 平均只增加 `0.0020`（约 2.1%），并且只在 4 个条件中的 2 个领先；Last-action 平均回报还比 Oracle 高 `0.0005`。因此 Intent-v1 的 Oracle headroom gate **失败**。
+
+决定：不增加 seed、不延长 Intent-v1 训练、不开始 Belief-v2。Intent-v1 保留为已否决的实验版本。下一步只允许分析“类型为何对最优动作价值不足”，若继续则设计新的版本 ID，不原地修改 Intent-v1。
+
+## Intent-v2：协同隐藏意图修复
+
+Intent-v1 headroom 失败后的代码审计发现：强制合作食物需要三个玩家共同 LOAD，但训练时 `initial_mode_ids=None` 会对两个队友执行不放回抽样，所以两名队友的初始模式共享率为 `0.000`，它们必然选择不同模式；切换后共享率也只有约 `0.300`。训练大部分时间处于队友目标冲突、任务不可完成的状态，而固定评估使用同型队友，造成训练/评估分布不一致。
+
+最小修复使用新参数 `shared_teammate_mode=True` 和新 ID `Intent-v2`：两名脚本队友在 reset 时共享一个隐藏模式，切换时共同切换到另一个模式。v0、Fixed-v1、Intent-v1 均不改变。
+
+新增 ID：
+
+```text
+epymarl/Switching-LBF-Intent-v2
+epymarl/Switching-LBF-TypeOracle-Intent-v2
+epymarl/Switching-LBF-LastAction-Intent-v2
+epymarl/Switching-LBF-Belief-Intent-v2
+```
+
+版本门禁证据（30 seeds）：
+
+```text
+intent_v1_shared_mode_rate initial=0.000 switched=0.300
+intent_v2_shared_mode_rate initial=1.000 switched=1.000
+PASS: version semantics and coordinated Intent-v2 prerequisites hold
+```
+
+下一门禁只训练 Intent-v2 Local 和 Type-Oracle 各一个 seed、500k steps。只有 Oracle 在公平固定条件评估中形成明确且一致的优势，才允许补 Last-action；否则停止 Intent-v2，不训练 Belief。
+
+Local 与 Type-Oracle 的 Intent-v2 EPyMARL 单进程端到端短跑均完成 20 steps，并正常输出 `pymarl Completed`。
