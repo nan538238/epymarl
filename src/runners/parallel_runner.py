@@ -6,6 +6,13 @@ import numpy as np
 from components.episode_buffer import EpisodeBatch
 from envs import REGISTRY as env_REGISTRY
 from envs import register_smac, register_smacv2
+from runners.switching_metrics import (
+    SWITCH_STATS_PREFIX,
+    SwitchingEpisodeMetrics,
+    add_switching_stats,
+    is_lbf_env_key,
+    log_switching_stats,
+)
 
 
 # Based (very) heavily on SubprocVecEnv from OpenAI Baselines
@@ -17,7 +24,13 @@ class ParallelRunner:
         self.batch_size = self.args.batch_size_run
         self._track_lbf_load = (
             self.args.env == "gymma"
-            and str(self.args.env_args.get("key", "")).startswith("lbforaging:")
+            and is_lbf_env_key(self.args.env_args.get("key", ""))
+        )
+        self._track_switching_metrics = (
+            self.args.env == "gymma"
+            and str(self.args.env_args.get("key", "")).startswith(
+                "epymarl/Switching-LBF"
+            )
         )
 
         # Make subprocesses for the envs
@@ -127,6 +140,9 @@ class ParallelRunner:
         # zero return can be distinguished from an action/reward pipeline bug.
         load_actions = 0
         positive_reward_steps = 0
+        switching_metrics = [
+            SwitchingEpisodeMetrics() for _ in range(self.batch_size)
+        ]
         self.mac.init_hidden(batch_size=self.batch_size)
         terminated = [False for _ in range(self.batch_size)]
         envs_not_terminated = [
@@ -188,6 +204,8 @@ class ParallelRunner:
 
                     if np.any(np.asarray(data["reward"]) > 0):
                         positive_reward_steps += 1
+                    if self._track_switching_metrics:
+                        switching_metrics[idx].observe(data["reward"], data["info"])
 
                     episode_returns[idx] += data["reward"]
                     episode_lengths[idx] += 1
@@ -254,6 +272,9 @@ class ParallelRunner:
         cur_stats["positive_reward_steps"] = (
             cur_stats.get("positive_reward_steps", 0) + positive_reward_steps
         )
+        if self._track_switching_metrics:
+            for episode_metrics in switching_metrics:
+                add_switching_stats(cur_stats, episode_metrics)
 
         cur_returns.extend(episode_returns)
 
@@ -297,8 +318,10 @@ class ParallelRunner:
             )
         returns.clear()
 
+        log_switching_stats(self.logger, stats, prefix, self.t_env)
+
         for k, v in stats.items():
-            if k != "n_episodes":
+            if k != "n_episodes" and not k.startswith(SWITCH_STATS_PREFIX):
                 self.logger.log_stat(
                     prefix + k + "_mean", v / stats["n_episodes"], self.t_env
                 )

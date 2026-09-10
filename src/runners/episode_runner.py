@@ -5,6 +5,13 @@ import numpy as np
 from components.episode_buffer import EpisodeBatch
 from envs import REGISTRY as env_REGISTRY
 from envs import register_smac, register_smacv2
+from runners.switching_metrics import (
+    SWITCH_STATS_PREFIX,
+    SwitchingEpisodeMetrics,
+    add_switching_stats,
+    is_lbf_env_key,
+    log_switching_stats,
+)
 
 
 class EpisodeRunner:
@@ -15,7 +22,13 @@ class EpisodeRunner:
         assert self.batch_size == 1
         self._track_lbf_load = (
             self.args.env == "gymma"
-            and str(self.args.env_args.get("key", "")).startswith("lbforaging:")
+            and is_lbf_env_key(self.args.env_args.get("key", ""))
+        )
+        self._track_switching_metrics = (
+            self.args.env == "gymma"
+            and str(self.args.env_args.get("key", "")).startswith(
+                "epymarl/Switching-LBF"
+            )
         )
 
         # registering both smac and smacv2 causes a pysc2 error
@@ -79,6 +92,7 @@ class EpisodeRunner:
             episode_return = np.zeros(self.args.n_agents)
         load_actions = 0
         positive_reward_steps = 0
+        switching_metrics = SwitchingEpisodeMetrics()
         self.mac.init_hidden(batch_size=self.batch_size)
 
         while not terminated:
@@ -108,6 +122,8 @@ class EpisodeRunner:
             episode_return += reward
             if np.any(np.asarray(reward) > 0):
                 positive_reward_steps += 1
+            if self._track_switching_metrics:
+                switching_metrics.observe(reward, env_info)
 
             post_transition_data = {
                 "actions": actions,
@@ -153,6 +169,8 @@ class EpisodeRunner:
         cur_stats["positive_reward_steps"] = (
             cur_stats.get("positive_reward_steps", 0) + positive_reward_steps
         )
+        if self._track_switching_metrics:
+            add_switching_stats(cur_stats, switching_metrics)
 
         if not test_mode:
             self.t_env += self.t
@@ -196,8 +214,10 @@ class EpisodeRunner:
             )
         returns.clear()
 
+        log_switching_stats(self.logger, stats, prefix, self.t_env)
+
         for k, v in stats.items():
-            if k != "n_episodes":
+            if k != "n_episodes" and not k.startswith(SWITCH_STATS_PREFIX):
                 self.logger.log_stat(
                     prefix + k + "_mean", v / stats["n_episodes"], self.t_env
                 )

@@ -37,6 +37,15 @@ class GymmaWrapper(MultiAgentEnv):
         max_episode_steps=None,
         **kwargs,
     ):
+        # These arguments belong only to the Switching-LBF prototype. Keep
+        # them out of ordinary Gym environments created through this wrapper.
+        if not key.startswith("epymarl/Switching-LBF"):
+            for switching_arg in (
+                "initial_mode_ids",
+                "switch_mode_ids",
+                "fixed_switch_step",
+            ):
+                kwargs.pop(switching_arg, None)
         # ``lbforaging`` registrations include their own 50-step TimeLimit and
         # an internal ``_max_episode_steps`` attribute.  Passing the requested
         # limit to gym.make controls the outer wrapper; for LBF, unwrapping and
