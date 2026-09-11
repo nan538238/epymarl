@@ -249,3 +249,24 @@ Oracle 在 3/3 条件中领先，平均增加 `0.012767`（约 6.9%），因此�
 Last-action seed 0 正常完成 500k 训练，最后一次在线测试回报 `0.1213`，低于 Local `0.1307` 和 Oracle `0.1313`。在线结果对 Oracle headroom 有利，但最终结论仍以固定条件配对评估为准。
 
 `run_switching_intent_v2_checkpoint_eval.sh` 已扩展到 Local、Oracle、Last-action 三种方法。重新运行时会跳过默认输出目录内已经完成的 6 个 Local/Oracle 日志，只补跑 Last-action 的 same、right-right、wait-wait 三组，并重新生成包含 9 组的汇总。
+
+服务器核对更新脚本 SHA256 为 `51e14f5c106af210d02efb9b3ffbbe5dd60c22c6b1ec25b2bf0741209fe506b7`。补充评估 dry-run 正确跳过 6 个既有日志，选择 Last-action checkpoint `453777`，并生成恰好 3 条待执行命令。
+
+### 2026-09-11：Intent-v2 三基线正式结论
+
+Local `453306`、Oracle `453189`、Last-action `453777`，3 个固定条件各 1000 episodes，9/9 完成且无错误。
+
+三条件平均指标：
+
+```text
+method       return    pre       post5     post10    post20    no-positive
+local        0.184433  0.121567  0.015367  0.030600  0.054233  0.838267
+oracle       0.197200  0.134567  0.013367  0.030533  0.056733  0.839533
+last_action  0.182533  0.135433  0.012000  0.024867  0.043533  0.878333
+```
+
+Oracle 在 3/3 条件中优于 Last-action，总回报平均高 `0.014667`（约 8.0%）；post10 高约 22.8%，post20 高约 30.3%。Oracle 也在 3/3 条件优于 Local，总回报平均高约 6.9%。因此 Intent-v2 的类型价值门禁通过，允许进入 Deterministic Belief seed 0。
+
+限制：Oracle 的 post5 低于 Local，且 no-positive 与 Local 基本相同，所以不能声称 Oracle 在所有恢复指标上占优。下一步只训练既有 deterministic belief，不实现 uncertainty、不扩充 seeds。Belief 只有在相同固定评估下优于 Last-action，才允许进入创新模块。
+
+Deterministic Belief-v2 已完成本地 EPyMARL 单进程 20-step 端到端短跑，`belief_mac`、64 维 belief hidden state、PPO learner 和 Intent-v2 观测维度均正常，输出 `pymarl Completed`。
