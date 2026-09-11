@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-# Fair fixed-condition comparison of coordinated Intent-v2 Local and Oracle.
+# Fair fixed-condition comparison of coordinated Intent-v2 baselines.
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root" || exit 1
 
@@ -14,11 +14,12 @@ seed="${SEED:-0}"
 dry_run="${DRY_RUN:-0}"
 mkdir -p "$output_dir"
 
-methods=(local oracle)
-configs=(mappo type_oracle_mappo)
+methods=(local oracle last_action)
+configs=(mappo type_oracle_mappo last_action_mappo)
 env_keys=(
   epymarl/Switching-LBF-Intent-v2
   epymarl/Switching-LBF-TypeOracle-Intent-v2
+  epymarl/Switching-LBF-LastAction-Intent-v2
 )
 conditions=(same right_right wait_wait)
 switch_modes=("[0,0]" "[1,1]" "[2,2]")

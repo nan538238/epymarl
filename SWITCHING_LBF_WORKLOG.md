@@ -243,3 +243,9 @@ oracle  0.2040       0.1923  0.1953     0.197200
 Oracle 在 3/3 条件中领先，平均增加 `0.012767`（约 6.9%），因此“隐藏类型对总回报有价值”的最低门禁通过。平均 post10 为 Local `0.0306`、Oracle `0.03053`，恢复窗口没有形成优势，故尚不允许进入 Belief。
 
 下一步只训练 Intent-v2 Last-action seed 0。只有固定评估显示 Oracle 明确优于 Last-action，才考虑 Belief；若 Last-action 匹配或超过 Oracle，则停止增加模型复杂度。
+
+### 2026-09-11：Intent-v2 Last-action 训练完成
+
+Last-action seed 0 正常完成 500k 训练，最后一次在线测试回报 `0.1213`，低于 Local `0.1307` 和 Oracle `0.1313`。在线结果对 Oracle headroom 有利，但最终结论仍以固定条件配对评估为准。
+
+`run_switching_intent_v2_checkpoint_eval.sh` 已扩展到 Local、Oracle、Last-action 三种方法。重新运行时会跳过默认输出目录内已经完成的 6 个 Local/Oracle 日志，只补跑 Last-action 的 same、right-right、wait-wait 三组，并重新生成包含 9 组的汇总。
