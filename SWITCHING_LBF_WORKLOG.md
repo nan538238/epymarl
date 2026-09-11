@@ -225,3 +225,21 @@ Local 与 Type-Oracle 的 Intent-v2 EPyMARL 单进程端到端短跑均完成 20
 Local 和 Type-Oracle 两组 500k 训练均正常完成，launcher 无错误退出。已确认 Local 最后一次在线测试 `return=0.1307`、`post5=0.0073`、`post10=0.0227`、`post20=0.0580`、切换后无正奖励率 `0.8300`。与 Intent-v1 Local 的 `0.0347` 相比，回报约为 3.8 倍，证明共享意图修复显著提高了任务可完成性。
 
 Oracle 的最后在线指标尚待从日志提取；无论在线差异如何，最终 headroom 判断使用新脚本 `scripts/run_switching_intent_v2_checkpoint_eval.sh`，对最新 Local/Oracle checkpoints 做 2 methods × 3 shared-mode conditions × 1000 episodes 的配对固定评估。
+
+Intent-v2 最新 checkpoints 为 Local `453306`、Oracle `453189`。在线测试分别为 `0.1307` 和 `0.1313`，Oracle 只高 `0.0006`，不能单独通过门禁。
+
+第一次 checkpoint 冒烟从 `(base)` 环境启动，6 个任务均被完成性检查拦截；保留失败目录后在 `(marl)` 环境重新运行，6/6 完成且无错误。20-episode 冒烟三条件平均回报为 Local `0.1222`、Oracle `0.1333`，仅视为正向信号，正式结论等待每条件 1000 episodes。
+
+### 2026-09-11：Intent-v2 Local/Oracle 正式门禁
+
+最新 checkpoints Local `453306`、Oracle `453189`，3 个固定条件各 1000 episodes，6/6 完成且无错误：
+
+```text
+method  right_right  same    wait_wait  mean
+local   0.1890       0.1860  0.1783     0.184433
+oracle  0.2040       0.1923  0.1953     0.197200
+```
+
+Oracle 在 3/3 条件中领先，平均增加 `0.012767`（约 6.9%），因此“隐藏类型对总回报有价值”的最低门禁通过。平均 post10 为 Local `0.0306`、Oracle `0.03053`，恢复窗口没有形成优势，故尚不允许进入 Belief。
+
+下一步只训练 Intent-v2 Last-action seed 0。只有固定评估显示 Oracle 明确优于 Last-action，才考虑 Belief；若 Last-action 匹配或超过 Oracle，则停止增加模型复杂度。
