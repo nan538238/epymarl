@@ -219,3 +219,9 @@ PASS: version semantics and coordinated Intent-v2 prerequisites hold
 Local 与 Type-Oracle 的 Intent-v2 EPyMARL 单进程端到端短跑均完成 20 steps，并正常输出 `pymarl Completed`。
 
 服务器首次运行版本门禁时，`from envs.switching_lbf` 先执行 `envs/__init__.py`，继而导入与本任务无关的 SMAClite、sklearn、scipy；用户在慢导入期间按 Ctrl+C。该现象不是 Intent-v2 失败。门禁脚本现改为通过文件路径直接加载 `switching_lbf.py`，隔离无关环境依赖。同期 shell dry-run 正确输出 2 条训练命令。
+
+### 2026-09-11：Intent-v2 headroom 训练完成
+
+Local 和 Type-Oracle 两组 500k 训练均正常完成，launcher 无错误退出。已确认 Local 最后一次在线测试 `return=0.1307`、`post5=0.0073`、`post10=0.0227`、`post20=0.0580`、切换后无正奖励率 `0.8300`。与 Intent-v1 Local 的 `0.0347` 相比，回报约为 3.8 倍，证明共享意图修复显著提高了任务可完成性。
+
+Oracle 的最后在线指标尚待从日志提取；无论在线差异如何，最终 headroom 判断使用新脚本 `scripts/run_switching_intent_v2_checkpoint_eval.sh`，对最新 Local/Oracle checkpoints 做 2 methods × 3 shared-mode conditions × 1000 episodes 的配对固定评估。
