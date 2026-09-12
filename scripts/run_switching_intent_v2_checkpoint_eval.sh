@@ -12,6 +12,7 @@ max_jobs="${MAX_JOBS:-2}"
 test_nepisode="${TEST_NEPISODE:-1000}"
 seed="${SEED:-0}"
 dry_run="${DRY_RUN:-0}"
+requested_methods="${METHODS:-local oracle last_action belief}"
 mkdir -p "$output_dir"
 
 methods=(local oracle last_action belief)
@@ -25,6 +26,20 @@ env_keys=(
 conditions=(same right_right wait_wait)
 switch_modes=("[0,0]" "[1,1]" "[2,2]")
 
+for requested_method in $requested_methods; do
+  valid=0
+  for method in "${methods[@]}"; do
+    if [ "$requested_method" = "$method" ]; then
+      valid=1
+      break
+    fi
+  done
+  if [ "$valid" -ne 1 ]; then
+    echo "Unknown method in METHODS: $requested_method" >&2
+    exit 1
+  fi
+done
+
 running_jobs() {
   jobs -pr | wc -l
 }
@@ -37,15 +52,19 @@ wait_for_slot() {
 
 for method_idx in "${!methods[@]}"; do
   method="${methods[$method_idx]}"
+  if [[ " $requested_methods " != *" $method "* ]]; then
+    continue
+  fi
   config="${configs[$method_idx]}"
   env_key="${env_keys[$method_idx]}"
   model_root="$training_root/$method/models"
   latest="$({
     find "$model_root" -regextype posix-extended -type d \
-      -regex '.*/[0-9]+' -printf '%f\t%h\n' 2>/dev/null || true
+      -path "*_seed${seed}_*" -regex '.*/[0-9]+' \
+      -printf '%f\t%h\n' 2>/dev/null || true
   } | sort -n -k1,1 | tail -1)"
   if [ -z "$latest" ]; then
-    echo "Missing numeric checkpoint below $model_root" >&2
+    echo "Missing numeric checkpoint for method=$method training_seed=$seed below $model_root" >&2
     exit 1
   fi
   IFS=$'\t' read -r load_step checkpoint_path <<< "$latest"
@@ -105,7 +124,7 @@ if [ "$dry_run" = "1" ]; then
 fi
 
 failed=0
-for method in "${methods[@]}"; do
+for method in $requested_methods; do
   for condition in "${conditions[@]}"; do
     log_path="$output_dir/${method}__${condition}__seed${seed}.log"
     if ! grep -q "pymarl Completed" "$log_path" 2>/dev/null; then

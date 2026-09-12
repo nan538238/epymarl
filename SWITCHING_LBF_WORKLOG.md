@@ -278,3 +278,38 @@ Deterministic Belief-v2 已完成本地 EPyMARL 单进程 20-step 端到端短�
 Belief seed 0 完成 500k 训练，日志出现 `pymarl Completed`，最新 checkpoint `452850`。最后在线测试回报 `0.1353`，高于 Oracle `0.1313`、Local `0.1307`、Last-action `0.1213`。该结果是正向信号，不作为最终结论。
 
 固定评估脚本已扩展到四种方法。重新运行默认输出目录时会跳过已经完成的 9 个基线日志，只对 Belief checkpoint 补跑 same、right-right、wait-wait 三个配对条件；正式评估仍为每条件 1000 episodes。
+
+### 2026-09-12：Deterministic Belief-v2 正式评估
+
+Belief checkpoint `452850` 的 3 个固定条件各 1000 episodes 已完成。总计 12/12 日志完成且无错误。
+
+Belief 三条件结果：
+
+```text
+condition    return  pre     post5  post10  post20  no-positive
+right_right  0.2087  0.1310  0.0054 0.0380  0.0734  0.7869
+same         0.1840  0.1363  0.0180 0.0301  0.0444  0.8868
+wait_wait    0.1787  0.1490  0.0124 0.0211  0.0279  0.9204
+mean         0.19047 0.13877 0.01193 0.02973 0.04857  0.86470
+```
+
+相对 Last-action，Belief 平均总回报提高约 4.35%，post10 提高约 19.6%，post20 提高约 11.6%；在 right-right 和 same 的总回报及 post10 上领先，但在 wait-wait 的所有 post-switch 回报和 no-positive 指标上都更差。
+
+相对 Local，Belief 平均总回报提高约 3.27%，但 post10 低约 2.8%，post20 低约 10.4%。相对 Oracle，Belief 平均总回报低约 3.4%。因此可以确认“历史编码比单步 Last-action 有平均价值”，但不能确认“Belief 提供稳定、普遍的快速适应”；真实切换条件 right-right / wait-wait 为一胜一负。
+
+当前结论：Deterministic Belief-v2 通过方法可行性门禁，可以进入多 seed 复现和针对 wait 模式的诊断；尚不允许直接声称快速适应成功，也不应立即实现 uncertainty。
+
+实现审计限制：`BeliefMAC` 没有显式 mode logits、posterior 或类型监督损失。actor 仍直接接收包含两个 teammate last-action one-hot 的完整 obs；每个 belief GRU 又接收完整 obs，并额外拼接该队友动作，造成动作证据重复。当前 hidden state 只能解释为端到端学习的 deterministic recurrent latent state，不能直接把其 entropy 当作校准的 belief uncertainty。进入 uncertainty 前必须先定义可验证的 posterior/目标，并对输入去重做消融。
+
+### 2026-09-12：多 seed 改为两阶段核心门禁
+
+用户决定先只补 Last-action 与 Belief 的训练 seed 1、2，共 4 个训练；核心对比通过后，再补 Local 与 Oracle 的 seed 1、2。这样先用约一半训练成本判断 recurrent history 是否值得继续。
+
+核心门禁预先定义如下，避免看到结果后修改标准：
+
+1. 只把 `right_right` 和 `wait_wait` 计入切换恢复主指标，`same` 仅作无切换对照。
+2. 每个训练 seed 分别计算两个真实切换条件的平均 post10；Belief 必须在至少 2/3 个训练 seeds 上高于 Last-action。
+3. 汇总三个训练 seeds 后，Belief 的真实切换平均 post10 和 post20 必须都高于 Last-action。
+4. `wait_wait` 汇总 post10 不得继续低于 Last-action；否则即使总平均提高，也只记录为 right 模式特化，不通过“稳定适应”门禁。
+
+已新增 `scripts/run_switching_intent_v2_core_multiseed.sh`，默认以两任务并行方式依次训练 seed 1、2 的 Last-action 与 Belief。固定评估脚本新增 `METHODS` 过滤，并修复为严格按训练 seed 选择 checkpoint；此前脚本会选择方法目录下的全局最大 checkpoint，在多 seed 场景存在模型与 seed 错配风险。历史 seed 0 结果不受该问题影响，因为当时每种方法只有一个训练 seed。
