@@ -270,3 +270,11 @@ Oracle 在 3/3 条件中优于 Last-action，总回报平均高 `0.014667`（约
 限制：Oracle 的 post5 低于 Local，且 no-positive 与 Local 基本相同，所以不能声称 Oracle 在所有恢复指标上占优。下一步只训练既有 deterministic belief，不实现 uncertainty、不扩充 seeds。Belief 只有在相同固定评估下优于 Last-action，才允许进入创新模块。
 
 Deterministic Belief-v2 已完成本地 EPyMARL 单进程 20-step 端到端短跑，`belief_mac`、64 维 belief hidden state、PPO learner 和 Intent-v2 观测维度均正常，输出 `pymarl Completed`。
+
+服务器 Belief-v2 启动器 SHA256 校验一致（`5258da954fc3033cdf94c514c3a60f8852aef742edc2c8735ae58617582e0f45`），`bash -n` 和 dry-run 均通过；dry-run 正确指向 `deterministic_belief_mappo`、`Switching-LBF-Belief-Intent-v2`，且未启动训练。
+
+### 2026-09-12：Deterministic Belief-v2 训练完成
+
+Belief seed 0 完成 500k 训练，日志出现 `pymarl Completed`，最新 checkpoint `452850`。最后在线测试回报 `0.1353`，高于 Oracle `0.1313`、Local `0.1307`、Last-action `0.1213`。该结果是正向信号，不作为最终结论。
+
+固定评估脚本已扩展到四种方法。重新运行默认输出目录时会跳过已经完成的 9 个基线日志，只对 Belief checkpoint 补跑 same、right-right、wait-wait 三个配对条件；正式评估仍为每条件 1000 episodes。

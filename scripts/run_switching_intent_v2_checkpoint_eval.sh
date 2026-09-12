@@ -14,12 +14,13 @@ seed="${SEED:-0}"
 dry_run="${DRY_RUN:-0}"
 mkdir -p "$output_dir"
 
-methods=(local oracle last_action)
-configs=(mappo type_oracle_mappo last_action_mappo)
+methods=(local oracle last_action belief)
+configs=(mappo type_oracle_mappo last_action_mappo deterministic_belief_mappo)
 env_keys=(
   epymarl/Switching-LBF-Intent-v2
   epymarl/Switching-LBF-TypeOracle-Intent-v2
   epymarl/Switching-LBF-LastAction-Intent-v2
+  epymarl/Switching-LBF-Belief-Intent-v2
 )
 conditions=(same right_right wait_wait)
 switch_modes=("[0,0]" "[1,1]" "[2,2]")
