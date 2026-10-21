@@ -263,6 +263,14 @@ def run_sequential(args, logger):
             logger.print_recent_stats()
             last_log_T = runner.t_env
 
+    # Save the fixed-budget policy, not merely the latest periodic checkpoint.
+    if args.save_model:
+        final_path = os.path.join(args.local_results_path, "models", args.unique_token, str(runner.t_env))
+        os.makedirs(final_path, exist_ok=True)
+        learner.save_models(final_path)
+    if args.env == "lbf_feedback":
+        for _ in range(max(1, args.test_nepisode // runner.batch_size)):
+            runner.run(test_mode=True)
     runner.close_env()
     logger.console_logger.info("Finished Training")
 

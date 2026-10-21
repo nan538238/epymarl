@@ -60,3 +60,10 @@ def register_smacv2():
         return SMACv2Wrapper(**kwargs)
 
     REGISTRY["sc2v2"] = smacv2_fn
+
+
+def lbf_feedback_fn(**kwargs):
+    from .lbf_feedback import LBFFeedbackEnv
+    return LBFFeedbackEnv(**kwargs)
+
+REGISTRY["lbf_feedback"] = lbf_feedback_fn

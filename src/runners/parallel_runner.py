@@ -86,12 +86,19 @@ class ParallelRunner:
         for parent_conn in self.parent_conns:
             parent_conn.send(("close", None))
 
-    def reset(self):
+    def reset(self, test_mode=False):
         self.batch = self.new_batch()
 
         # Reset the envs
-        for parent_conn in self.parent_conns:
-            parent_conn.send(("reset", None))
+        if not test_mode or not getattr(self, "_last_test_mode", False):
+            self._evaluation_offset = 0
+        for index, parent_conn in enumerate(self.parent_conns):
+            parent_conn.send(("reset", {"test_mode": test_mode,
+                "evaluation_seed": 100000 + self._evaluation_offset + index,
+                "train_steps": self.t_env}))
+        if test_mode:
+            self._evaluation_offset += self.batch_size
+        self._last_test_mode = test_mode
 
         pre_transition_data = {"state": [], "avail_actions": [], "obs": []}
         # Get the obs, state and avail_actions back
@@ -107,7 +114,7 @@ class ParallelRunner:
         self.env_steps_this_run = 0
 
     def run(self, test_mode=False):
-        self.reset()
+        self.reset(test_mode=test_mode)
 
         all_terminated = False
         if self.args.common_reward:
@@ -312,7 +319,10 @@ def env_worker(remote, env_fn):
                 }
             )
         elif cmd == "reset":
-            env.reset()
+            if hasattr(env, "reset_for_run"):
+                env.reset_for_run(**data)
+            else:
+                env.reset()
             remote.send(
                 {
                     "state": env.get_state(),
